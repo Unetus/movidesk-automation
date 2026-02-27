@@ -637,35 +637,40 @@ class EmailNotifier:
     
     def send_html_notification(self, subject: str, html_body: str, to: Optional[str] = None) -> bool:
         """
-        Send HTML notification (for styled reports).
-        
+        Send HTML notification using SendGrid API.
         Args:
             subject: Email subject
             html_body: HTML body content
             to: Email recipient (optional, defaults to EMAIL_TO from settings)
-        
         Returns:
             True if sent successfully
         """
+        import os
+        import sendgrid
+        from sendgrid.helpers.mail import Mail
         if not self.enabled:
             self.logger.info("Email notifications disabled, skipping")
             return False
-        
-        # Use provided recipient or fallback to settings
         recipient = to or self.settings.email_to
-        
+        api_key = os.getenv("SENDGRID_API_KEY")
+        if not api_key:
+            self.logger.error("SENDGRID_API_KEY não configurada no ambiente.")
+            return False
+        sg = sendgrid.SendGridAPIClient(api_key=api_key)
+        message = Mail(
+            from_email=self.settings.email_from,
+            to_emails=recipient,
+            subject=subject,
+            html_content=html_body
+        )
         try:
-            self._send_email(
-                to=recipient,
-                subject=subject,
-                html_body=html_body
-            )
-            self.logger.info(f"[EMAIL] Enviado com sucesso para: {recipient} | Assunto: {subject}")
-            return True
+            response = sg.send(message)
+            self.logger.info(f"[EMAIL] Enviado via SendGrid para: {recipient} | Assunto: {subject} | Status: {response.status_code}")
+            return response.status_code == 202
         except Exception as e:
             import traceback
             tb = traceback.format_exc()
-            self.logger.error(f"[EMAIL] Falha ao enviar para: {recipient} | Assunto: {subject} | Erro: {e}\nTraceback: {tb}")
+            self.logger.error(f"[EMAIL] Falha ao enviar via SendGrid para: {recipient} | Assunto: {subject} | Erro: {e}\nTraceback: {tb}")
             return False
     
     def test_connection(self) -> bool:
