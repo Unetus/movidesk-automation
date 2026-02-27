@@ -635,13 +635,14 @@ class EmailNotifier:
             self.logger.error(f"Error sending raw notification: {e}")
             return False
     
-    def send_html_notification(self, subject: str, html_body: str) -> bool:
+    def send_html_notification(self, subject: str, html_body: str, to: Optional[str] = None) -> bool:
         """
         Send HTML notification (for styled reports).
         
         Args:
             subject: Email subject
             html_body: HTML body content
+            to: Email recipient (optional, defaults to EMAIL_TO from settings)
         
         Returns:
             True if sent successfully
@@ -650,17 +651,20 @@ class EmailNotifier:
             self.logger.info("Email notifications disabled, skipping")
             return False
         
+        # Use provided recipient or fallback to settings
+        recipient = to or self.settings.email_to
+        
         try:
             self._send_email(
-                to=self.settings.email_to,
+                to=recipient,
                 subject=subject,
                 html_body=html_body
             )
-            self.logger.info(f"Sent HTML notification: {subject}")
+            self.logger.info(f"Sent HTML notification to {recipient}: {subject}")
             return True
         
         except Exception as e:
-            self.logger.error(f"Error sending HTML notification: {e}")
+            self.logger.error(f"Error sending HTML notification to {recipient}: {e}")
             return False
     
     def test_connection(self) -> bool:

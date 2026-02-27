@@ -2,7 +2,7 @@
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
-from typing import Optional
+from typing import Optional, List
 
 
 class Settings(BaseSettings):
@@ -21,7 +21,44 @@ class Settings(BaseSettings):
         default="https://api.movidesk.com/public/v1",
         description="Movidesk API base URL"
     )
-    movidesk_agent_email: str = Field(..., description="Agent email for filtering tickets")
+    movidesk_agent_email: Optional[str] = Field(
+        default=None, 
+        description="Single agent email (legacy, use AGENTS for multi-agent)"
+    )
+    
+    # Multi-Agent Support (v2.0)
+    agents: Optional[str] = Field(
+        default=None,
+        description="Multiple agent emails separated by semicolon (e.g., 'email1@;email2@;email3@')"
+    )
+    
+    @property
+    def agent_emails_list(self) -> List[str]:
+        """Get list of agent emails supporting both single and multi-agent modes.
+        
+        Returns:
+            List of agent email addresses. In single-agent mode, returns list with one email.
+            In multi-agent mode, returns list parsed from AGENTS variable.
+        """
+        # Multi-agent mode (priority)
+        if self.agents:
+            emails = [email.strip() for email in self.agents.split(';') if email.strip()]
+            if emails:
+                return emails
+        
+        # Fallback to single-agent mode (backward compatibility)
+        if self.movidesk_agent_email:
+            return [self.movidesk_agent_email]
+        
+        raise ValueError(
+            "No agent emails configured. Set either AGENTS (multi-agent) or "
+            "MOVIDESK_AGENT_EMAIL (single-agent) in .env file"
+        )
+    
+    @property
+    def is_multi_agent_mode(self) -> bool:
+        """Check if running in multi-agent mode."""
+        return bool(self.agents and len(self.agent_emails_list) > 1)
     
     # Groq API
     groq_api_key: str = Field(..., description="Groq API key for AI summarization")

@@ -208,6 +208,39 @@ O sistema oferece menu com opções:
 
 ---
 
+## ☁️ Multi-Agent Cloud Deployment (Railway)
+
+### Como funciona?
+- Relatórios diários são enviados para múltiplos agentes, cada um recebe apenas seus tickets.
+- Executado automaticamente às 08h (seg-sex) via cron job Railway.
+- Configuração dos agentes via variável de ambiente `AGENTS` (emails separados por ponto-e-vírgula).
+
+### Configuração Railway
+1. Deploy via GitHub (ver DEPLOYMENT.md para guia completo)
+2. Variáveis obrigatórias:
+  - `AGENTS=agente1@empresa.com;agente2@empresa.com`
+  - `EMAIL_ENABLED=true`
+  - `EMAIL_SMTP_SERVER`, `EMAIL_FROM`, `EMAIL_PASSWORD`, etc.
+3. Cron job: `python main.py --scheduled-report`
+4. Volume persistente: `/app/data` para SQLite
+
+### Testando Multi-Agent
+```powershell
+python main.py --scheduled-report --dry-run
+```
+Cada agente receberá relatório individual (simulado).
+
+### Adicionando/Removendo Agentes
+- Edite a variável `AGENTS` no Railway Dashboard.
+- Formato: `email1@;email2@;email3@`
+- Redeploy automático.
+
+### Troubleshooting
+- Verifique logs Railway para erros de SMTP, API, ou configuração.
+- Consulte DEPLOYMENT.md para dicas de cron, backup, e monitoramento.
+
+---
+
 ## 📁 Estrutura do Projeto
 
 ```

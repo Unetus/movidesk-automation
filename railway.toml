@@ -1,0 +1,22 @@
+# Railway Configuration
+# See: https://docs.railway.app/deploy/config-as-code
+
+[build]
+  # Build command (if needed)
+  # Railway will auto-detect Python and install requirements.txt
+  
+[deploy]
+  # Start command (from Procfile)
+  startCommand = "python main.py --scheduled-report"
+  
+  # Restart policy - don't restart on exit (since this is a cron job)
+  restartPolicyType = "never"
+  
+  # Region (closest to Brazil)
+  # Options: us-west1, us-east4, europe-west4
+  region = "us-east4"
+
+# Cron schedule configuration
+# Railway supports cron-based deployments through their scheduling feature
+# Configure this in Railway dashboard: Settings → Cron
+# Schedule: "0 8 * * 1-5" (08:00 AM Monday-Friday, America/Sao_Paulo timezone)

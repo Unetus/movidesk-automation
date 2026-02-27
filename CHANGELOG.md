@@ -1,4 +1,48 @@
 # Changelog
+# [2.0.0-multi-agent] - 2026-02-27
+
+### 🚀 Multi-Agent Cloud Deployment
+
+Sistema agora suporta múltiplos agentes, cada um recebendo relatórios diários individualizados via cron job Railway.
+
+#### ✨ Novas Features
+
+**Multi-Agent:**
+- ✅ Configuração de agentes via variável `AGENTS` (emails separados por ponto-e-vírgula)
+- ✅ Orquestrador de relatórios para múltiplos agentes
+- ✅ Relatórios enviados individualmente para cada agente
+- ✅ Estado persistente por agente (SQLite)
+- ✅ Volume Railway para banco de dados
+- ✅ Cron job automático (08h seg-sex)
+- ✅ Testes automatizados para multi-agente
+- ✅ Documentação de deploy cloud (DEPLOYMENT.md)
+
+**Compatibilidade:**
+- ✅ Modo single-agent ainda suportado
+- ✅ Migração automática de estado legacy
+
+#### 🛠️ Arquivos Novos/Alterados
+- src/config/settings.py (multi-agent)
+- src/polling/agent_orchestrator.py (novo)
+- src/polling/daily_report.py (adaptado)
+- src/polling/state.py (multi-agent)
+- main.py (scheduled-report)
+- Procfile, railway.toml, runtime.txt, .railwayignore (Railway)
+- DEPLOYMENT.md (guia cloud)
+- test_multi_agent.py (testes)
+
+#### 🧪 Testes
+- test_multi_agent.py: valida processamento, isolamento de erros, persistência de estado
+
+#### 🐛 Known Issues
+- Nenhum conhecido
+
+#### 🔮 Roadmap Futuro
+- [ ] Dashboard web multi-agente
+- [ ] Métricas por agente
+- [ ] Integração com outros provedores cloud
+
+---
 
 ## [1.0.0] - 2026-02-26
 

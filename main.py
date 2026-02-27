@@ -159,7 +159,22 @@ class MovideskAutomation:
             self.logger.info(f"Mode: {'DRY RUN' if self.dry_run else 'PRODUCTION'}")
             
             # Execute based on mode
-            if self.mode == 'daily-report':
+            if self.mode == 'scheduled-report':
+                self.logger.info("📊 Multi-Agent Scheduled Report Mode")
+                from src.polling.agent_orchestrator import AgentReportOrchestrator
+                orchestrator = AgentReportOrchestrator()
+                results = orchestrator.generate_reports_for_all_agents()
+                
+                # Log summary
+                if results['failed'] > 0:
+                    self.logger.warning(
+                        f"⚠️  Completed with {results['failed']} failure(s) out of {results['total_agents']} agent(s)"
+                    )
+                    sys.exit(1)  # Non-zero exit for monitoring
+                else:
+                    self.logger.info(f"✅ All {results['successful']} reports sent successfully")
+                    
+            elif self.mode == 'daily-report':
                 self.logger.info("📊 Generating comprehensive daily report with AI summaries")
                 from src.polling.daily_report import DailyReportGenerator
                 reporter = DailyReportGenerator()
@@ -241,6 +256,11 @@ def main():
         help='Execution mode: daily-report (default, with AI summaries), latest, or overdue'
     )
     parser.add_argument(
+        '--scheduled-report',
+        action='store_true',
+        help='Multi-agent scheduled report mode (sends reports to all configured agents)'
+    )
+    parser.add_argument(
         '--dry-run',
         action='store_true',
         help='Run in test mode without sending notifications'
@@ -254,8 +274,8 @@ def main():
     args = parser.parse_args()
     
     dry_run = args.dry_run or args.test
-    run_once = args.once
-    mode = args.mode
+    run_once = args.once or args.scheduled_report  # scheduled-report implies run_once
+    mode = 'scheduled-report' if args.scheduled_report else args.mode
     
     app = MovideskAutomation(dry_run=dry_run, run_once=run_once, mode=mode)
     

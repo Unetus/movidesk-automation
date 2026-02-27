@@ -25,16 +25,28 @@ class DailyReportGenerator:
     - All timestamps converted to Brazil timezone (BRT/UTC-3)
     - Smart rate limiting to respect API and token quotas
     - Historical data storage for analytics
+    - Multi-agent support (v2.0)
     """
     
-    def __init__(self):
-        """Initialize report generator."""
+    def __init__(self, agent_email: Optional[str] = None):
+        """
+        Initialize report generator.
+        
+        Args:
+            agent_email: Email of the agent to generate report for.
+                        If None, uses MOVIDESK_AGENT_EMAIL from settings (backward compatibility).
+        """
         self.settings = get_settings()
         self.logger = get_logger()
         self.api_client = MovideskClient()
         self.notifier = EmailNotifier()
         self.summarizer = TicketSummarizer()
         self.db = DatabaseRepository()
+        
+        # Agent email (supports multi-agent mode)
+        self.agent_email = agent_email or self.settings.agent_emails_list[0]
+        
+        self.logger.info(f"[INIT] DailyReportGenerator inicializado para agente: {self.agent_email}")
         
         # Timezone configuration
         self.utc_tz = pytz.UTC
@@ -200,7 +212,7 @@ class DailyReportGenerator:
         
         # Fetch all open tickets (limit to avoid API overload)
         tickets = self.api_client.get_tickets(
-            filter_expr=f"owner/email eq '{self.settings.movidesk_agent_email}' and baseStatus ne 'Closed' and baseStatus ne 'Resolved'",
+            filter_expr=f"owner/email eq '{self.agent_email}' and baseStatus ne 'Closed' and baseStatus ne 'Resolved'",
             top=50,  # Limit to 50 to respect API quotas
             order_by='createdDate desc'
         )
@@ -233,7 +245,7 @@ class DailyReportGenerator:
         
         # Use existing method from API client (already respects rate limits)
         overdue = self.api_client.get_overdue_tickets_for_agent(
-            agent_email=self.settings.movidesk_agent_email,
+            agent_email=self.agent_email,
             limit=50  # Limit to respect API
         )
         
@@ -257,7 +269,7 @@ class DailyReportGenerator:
         
         # Fetch all open tickets (reuse from get_new_tickets to save API calls)
         tickets = self.api_client.get_tickets(
-            filter_expr=f"owner/email eq '{self.settings.movidesk_agent_email}' and baseStatus ne 'Closed' and baseStatus ne 'Resolved'",
+            filter_expr=f"owner/email eq '{self.agent_email}' and baseStatus ne 'Closed' and baseStatus ne 'Resolved'",
             top=50
         )
         
@@ -348,7 +360,7 @@ class DailyReportGenerator:
         lines.append("[CHART] RELATORIO DIARIO DE TICKETS")
         lines.append("="*70)
         lines.append(f"Gerado em: {report['generated_at'].strftime('%d/%m/%Y às %H:%M')} (Horário de Brasília)")
-        lines.append(f"Agente: {self.settings.movidesk_agent_email}")
+        lines.append(f"Agente: {self.agent_email}")
         lines.append("="*70)
         lines.append("")
         
@@ -812,7 +824,7 @@ class DailyReportGenerator:
         <div class="header">
             <h1>📊 Relatório Diário de Tickets</h1>
             <p>Gerado em {generated_at}</p>
-            <p>Agente: {self.settings.movidesk_agent_email}</p>
+            <p>Agente: {self.agent_email}</p>
         </div>
         
         <div class="stats-grid">
@@ -885,13 +897,13 @@ class DailyReportGenerator:
             print("\n" + report_text + "\n")
             
             # Get comparison with yesterday
-            comparison = self.db.get_comparison_with_yesterday(self.settings.movidesk_agent_email)
+            comparison = self.db.get_comparison_with_yesterday(self.agent_email)
             
             # Save report to database
             self.logger.info("[DB] Salvando relatório no banco de dados...")
             report_record = Report(
                 generated_at=report['generated_at'],
-                agent_email=self.settings.movidesk_agent_email,
+                agent_email=self.agent_email,
                 total_new=report['statistics']['total_new'],
                 total_overdue=report['statistics']['total_overdue'],
                 total_expiring=report['statistics']['total_expiring'],
@@ -988,10 +1000,11 @@ class DailyReportGenerator:
             generated_date = report['generated_at'].strftime('%d/%m/%Y')
             subject = f"Relatório Diário - Tickets do dia ({generated_date})"
             
-            self.logger.info("[EMAIL] Enviando relatório por email (formato HTML)...")
+            self.logger.info(f"[EMAIL] Enviando relatório para {self.agent_email} (formato HTML)...")
             self.notifier.send_html_notification(
                 subject=subject,
-                html_body=report_html
+                html_body=report_html,
+                to=self.agent_email  # Send to agent's own email
             )
             
             # Update report as sent

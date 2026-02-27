@@ -1,0 +1,50 @@
+# Railway Ignore File
+# Files and directories to exclude from Railway deployment
+
+# Environment (use Railway's env vars instead)
+.env
+
+# Development files
+*.bat
+*.ps1
+debug*.py
+test*.py
+check*.py
+find*.py
+
+# Data and logs (will be created fresh on Railway)
+data/
+logs/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (not needed in production)
+*.md
+!README.md
+docs/
+
+# Backup files
+*.bak
+*.backup
