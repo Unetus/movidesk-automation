@@ -1,0 +1,100 @@
+polling:
+  # Horário comercial (rate limit mais rigoroso: 10 req/min)
+  business_hours:
+    start: "07:01"
+    end: "18:59"
+    interval_minutes: 6  # Consulta a cada 6 minutos durante expediente
+  
+  # Fora do horário comercial (sem limite rigoroso)
+  off_hours:
+    interval_minutes: 2  # Consulta a cada 2 minutos fora do expediente
+  
+  timezone: "America/Sao_Paulo"
+
+filters:
+  # Número de tickets a buscar por verificação (modo relatório)
+  ticket_limit: 5
+  
+  # Filtrar por urgência/prioridade (deixe vazio para todas)
+  urgencies: []
+    # - "High"      # Alta
+    # - "Urgent"    # Urgente
+    # - "Critical"  # Crítica
+  
+  # Filtrar por status (deixe vazio para todos)
+  statuses: []
+    # - "New"          # Novo
+    # - "InAttendance" # Em Atendimento
+  
+  # Excluir tickets resolvidos/fechados
+  exclude_resolved: true
+  exclude_closed: true
+  
+  # Filtrar apenas tickets atribuídos ao agente configurado
+  only_assigned_to_me: true
+
+summarization:
+  enabled: true
+  model: "llama-3.1-8b-instant"  # Groq model (gratuito, rápido e atual)
+  max_tokens: 500  # Aumentado para resumos mais completos
+  temperature: 0.4  # Levemente mais criativo para gerar detalhes
+  prompt_template: |
+    Você é um assistente especializado em analisar tickets de suporte técnico de HOTSPOT/rede.
+    
+    Analise o ticket e crie um resumo ESTRUTURADO seguindo EXATAMENTE este formato:
+    
+    PROBLEMA PRINCIPAL:
+    [Descreva em 1-2 frases o que o cliente está reportando ou solicitando]
+    
+    DETALHES RELEVANTES:
+    - Unidade: [Nome do cliente/unidade do ticket]
+    - Equipamento: [MikroTik, Fortigate, UNIFI, etc. Se não mencionado: "NÃO IDENTIFICADO"]
+    - Erro: [Código/mensagem de erro se houver, ex: UNIFI_01. Se não houver erro, deixe em branco]
+    
+    AÇÕES REALIZADAS:
+    [Se houver tratativas/ações registradas, resuma-as. Caso contrário: "Nenhuma ação registrada até o momento."]
+    
+    PRÓXIMOS PASSOS:
+    [Pendências ou ações necessárias. Se não houver, escreva: "Aguardando informações iniciais."]
+    
+    IMPORTANTE:
+    - NÃO use formatação markdown (**, *, _, etc.)
+    - NÃO repita informações de urgência/severidade
+    - Seja objetivo e direto
+    - Para "Unidade", use o nome do CLIENTE listado no ticket
+    - Para "Equipamento", identifique tecnologias de rede mencionadas (MikroTik, Fortigate, UNIFI, etc.)
+    
+    TICKET:
+    {ticket_content}
+    
+    RESUMO:
+
+notifications:
+  email:
+    enabled: true
+    batch_mode: true  # Agrupar múltiplos tickets em um email
+    batch_interval_minutes: 10  # Se houver múltiplos tickets, enviar a cada X min
+    subject_template: "[Movidesk] {count} ticket(s) requer(em) atenção"
+  
+  # Template do email
+  include_in_notification:
+    - ticket_id
+    - subject
+    - urgency
+    - status
+    - client_name
+    - last_update
+    - ai_summary
+    - direct_link
+
+database:
+  type: "json"  # Simples: armazena estado em JSON
+  state_file: "./data/state.json"
+
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  format: "colored"  # colored ou json
+  file: "./logs/automation.log"
+  rotation:
+    max_bytes: 10485760  # 10MB
+    backup_count: 5
