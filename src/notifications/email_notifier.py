@@ -1,8 +1,7 @@
 """Email notification system."""
 
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import sendgrid
+from sendgrid.helpers.mail import Mail
 from typing import List, Optional, Dict
 from datetime import datetime
 
@@ -34,10 +33,31 @@ class EmailNotifier:
         
         # Email config
         self.email_config = self.config.notifications.get('email', {})
-        self.enabled = self.settings.email_enabled and self.email_config.get('enabled', True)
-        
-        if not self.enabled:
-            self.logger.info("Email notifications are disabled")
+        self.enabled = True  # Sempre habilitado para SendGrid
+        self.sendgrid_api_key = getattr(self.settings, 'sendgrid_api_key', None) or self.email_config.get('sendgrid_api_key')
+        self.logger.info(f"[DIAGNOSTIC] Email enabled: {self.enabled}")
+        self.logger.info(f"[DIAGNOSTIC] SENDGRID_API_KEY: {'set (' + self.sendgrid_api_key[:10] + '...)' if self.sendgrid_api_key else 'MISSING!'}")
+        self.logger.info(f"[DIAGNOSTIC] EMAIL_FROM: {self.settings.email_from}")
+        self.logger.info(f"[DIAGNOSTIC] EMAIL_TO: {self.settings.email_to}")
+
+    def send_test_email(self) -> bool:
+        """
+        Envia um email de teste simples usando SendGrid.
+        """
+        subject = "Teste Movidesk Automation - SendGrid"
+        html_body = "<h2>Teste de envio de email via SendGrid</h2><p>Se você recebeu este email, o envio está funcionando!</p>"
+        try:
+            self.logger.info("[TEST] Enviando email de teste...")
+            self._send_email(
+                to=self.settings.email_to,
+                subject=subject,
+                html_body=html_body
+            )
+            self.logger.info("[TEST] Email de teste enviado com sucesso!")
+            return True
+        except Exception as e:
+            self.logger.error(f"[TEST] Falha ao enviar email de teste: {e}")
+            return False
     
     def send_ticket_notification(
         self,
@@ -115,40 +135,50 @@ class EmailNotifier:
     
     def _send_email(self, to: str, subject: str, html_body: str) -> None:
         """
-        Send email via SMTP.
-        
+        Send email via SendGrid API.
         Args:
             to: Recipient email
             subject: Email subject
             html_body: HTML body content
         """
-        # Create message
-        msg = MIMEMultipart('alternative')
-        msg['From'] = self.settings.email_from
-        msg['To'] = to
-        msg['Subject'] = subject
-        msg['Date'] = datetime.now().strftime('%a, %d %b %Y %H:%M:%S %z')
+        if not self.sendgrid_api_key:
+            self.logger.error("SENDGRID_API_KEY não configurada.")
+            raise EmailNotifierError("SENDGRID_API_KEY não configurada.")
         
-        # Attach HTML
-        html_part = MIMEText(html_body, 'html', 'utf-8')
-        msg.attach(html_part)
+        self.logger.info(f"[SENDGRID] Preparando envio: from={self.settings.email_from}, to={to}, subject={subject[:50]}...")
         
-        # Send via SMTP
+        sg = sendgrid.SendGridAPIClient(api_key=self.sendgrid_api_key)
+        mail = Mail(
+            from_email=self.settings.email_from,
+            to_emails=to,
+            subject=subject,
+            html_content=html_body
+        )
         try:
-            with smtplib.SMTP(
-                self.settings.email_smtp_server,
-                self.settings.email_smtp_port,
-                timeout=30
-            ) as server:
-                server.starttls()
-                server.login(self.settings.email_from, self.settings.email_password)
-                server.send_message(msg)
-                self.logger.debug(f"Email sent to {to}")
-        
-        except smtplib.SMTPException as e:
-            raise EmailNotifierError(f"SMTP error: {e}")
+            response = sg.send(mail)
+            self.logger.info(f"[SENDGRID] Status Code: {response.status_code}")
+            self.logger.info(f"[SENDGRID] Response Body: {response.body}")
+            self.logger.info(f"[SENDGRID] Response Headers: {dict(response.headers) if response.headers else 'N/A'}")
+            
+            if response.status_code == 202:
+                msg_id = response.headers.get('X-Message-Id', 'N/A') if response.headers else 'N/A'
+                self.logger.info(f"[SENDGRID] ✅ Email aceito para entrega! Message-ID: {msg_id}")
+                self.logger.info(f"[SENDGRID] ⚠️  Se o email não chegar, verifique:")
+                self.logger.info(f"[SENDGRID]    1. Sender '{self.settings.email_from}' está verificado no SendGrid?")
+                self.logger.info(f"[SENDGRID]    2. Verifique a pasta de spam do destinatário")
+                self.logger.info(f"[SENDGRID]    3. Verifique Activity Feed no painel SendGrid")
+            elif response.status_code >= 400:
+                self.logger.error(f"[SENDGRID] ❌ Erro HTTP {response.status_code}: {response.body}")
+                raise EmailNotifierError(f"SendGrid error: {response.status_code} {response.body}")
+            else:
+                self.logger.warning(f"[SENDGRID] ⚠️ Status inesperado: {response.status_code}")
+        except EmailNotifierError:
+            raise
         except Exception as e:
-            raise EmailNotifierError(f"Email send error: {e}")
+            self.logger.error(f"[SENDGRID] ❌ Exception ao enviar: {type(e).__name__}: {e}")
+            import traceback
+            self.logger.error(f"[SENDGRID] Traceback: {traceback.format_exc()}")
+            raise EmailNotifierError(f"SendGrid send error: {e}")
     
     def _format_single_ticket_html(
         self,
@@ -645,17 +675,22 @@ class EmailNotifier:
         Returns:
             True if sent successfully
         """
-        import os
-        import sendgrid
-        from sendgrid.helpers.mail import Mail
         if not self.enabled:
             self.logger.info("Email notifications disabled, skipping")
             return False
         recipient = to or self.settings.email_to
-        api_key = os.getenv("SENDGRID_API_KEY")
+        
+        # Use self.sendgrid_api_key (already loaded from settings) with fallback to env
+        api_key = self.sendgrid_api_key
         if not api_key:
-            self.logger.error("SENDGRID_API_KEY não configurada no ambiente.")
+            import os
+            api_key = os.getenv("SENDGRID_API_KEY")
+        if not api_key:
+            self.logger.error("[EMAIL] SENDGRID_API_KEY não configurada (nem em settings nem em env).")
             return False
+        
+        self.logger.info(f"[EMAIL] Preparando envio HTML: from={self.settings.email_from}, to={recipient}")
+        
         sg = sendgrid.SendGridAPIClient(api_key=api_key)
         message = Mail(
             from_email=self.settings.email_from,
@@ -665,31 +700,38 @@ class EmailNotifier:
         )
         try:
             response = sg.send(message)
-            self.logger.info(f"[EMAIL] Enviado via SendGrid para: {recipient} | Assunto: {subject} | Status: {response.status_code}")
-            return response.status_code == 202
+            status = response.status_code
+            msg_id = response.headers.get('X-Message-Id', 'N/A') if response.headers else 'N/A'
+            self.logger.info(f"[EMAIL] SendGrid response: status={status}, message_id={msg_id}")
+            self.logger.info(f"[EMAIL] Enviado via SendGrid para: {recipient} | Assunto: {subject} | Status: {status}")
+            
+            if status == 202:
+                self.logger.info(f"[EMAIL] ✅ Aceito para entrega. Verifique Activity Feed no SendGrid se não chegar.")
+            elif status >= 400:
+                self.logger.error(f"[EMAIL] ❌ Erro: {status} - {response.body}")
+            
+            return status == 202
         except Exception as e:
             import traceback
             tb = traceback.format_exc()
-            self.logger.error(f"[EMAIL] Falha ao enviar via SendGrid para: {recipient} | Assunto: {subject} | Erro: {e}\nTraceback: {tb}")
+            self.logger.error(f"[EMAIL] ❌ Falha ao enviar via SendGrid para: {recipient} | Assunto: {subject} | Erro: {e}\nTraceback: {tb}")
             return False
     
     def test_connection(self) -> bool:
         """
-        Test SMTP connection.
+        Test SendGrid API connection.
         
         Returns:
             True if connection successful
         """
         try:
-            with smtplib.SMTP(
-                self.settings.email_smtp_server,
-                self.settings.email_smtp_port,
-                timeout=10
-            ) as server:
-                server.starttls()
-                server.login(self.settings.email_from, self.settings.email_password)
-                self.logger.info("SMTP connection test successful")
-                return True
+            self.logger.info("[TEST] Testando conexão com SendGrid API...")
+            if not self.sendgrid_api_key:
+                self.logger.error("[TEST] SENDGRID_API_KEY não configurada!")
+                return False
+            
+            # Send a test email
+            return self.send_test_email()
         except Exception as e:
-            self.logger.error(f"SMTP connection test failed: {e}")
+            self.logger.error(f"[TEST] SendGrid connection test failed: {e}")
             return False

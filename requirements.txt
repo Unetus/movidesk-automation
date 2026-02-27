@@ -18,5 +18,8 @@ groq>=0.4.2
 # Timezone handling
 pytz>=2024.1
 
+# Email - SendGrid
+sendgrid>=6.11.0
+
 # Logging
 colorlog>=6.8.2

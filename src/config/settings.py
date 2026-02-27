@@ -70,6 +70,7 @@ class Settings(BaseSettings):
     email_from: str = Field(...)
     email_password: str = Field(...)
     email_to: str = Field(...)
+    sendgrid_api_key: Optional[str] = Field(default=None, description="SendGrid API Key for email sending")
     
     # Logging
     log_level: str = Field(default="INFO")
