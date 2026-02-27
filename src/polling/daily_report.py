@@ -1000,12 +1000,13 @@ class DailyReportGenerator:
             generated_date = report['generated_at'].strftime('%d/%m/%Y')
             subject = f"Relatório Diário - Tickets do dia ({generated_date})"
             
-            self.logger.info(f"[EMAIL] Enviando relatório para {self.agent_email} (formato HTML)...")
-            self.notifier.send_html_notification(
+            self.logger.info(f"[EMAIL] [START] Enviando relatório para {self.agent_email} (formato HTML)...")
+            email_result = self.notifier.send_html_notification(
                 subject=subject,
                 html_body=report_html,
                 to=self.agent_email  # Send to agent's own email
             )
+            self.logger.info(f"[EMAIL] [END] Resultado envio: {email_result}")
             
             # Update report as sent
             self.db.update_report(report_id, email_sent=True)
