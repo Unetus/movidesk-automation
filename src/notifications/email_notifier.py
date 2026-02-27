@@ -34,7 +34,12 @@ class EmailNotifier:
         # Email config
         self.email_config = self.config.notifications.get('email', {})
         self.enabled = True  # Sempre habilitado para SendGrid
-        self.sendgrid_api_key = getattr(self.settings, 'sendgrid_api_key', None) or self.email_config.get('sendgrid_api_key')
+        import os
+        self.sendgrid_api_key = (
+            getattr(self.settings, 'sendgrid_api_key', None)
+            or self.email_config.get('sendgrid_api_key')
+            or os.getenv("SENDGRID_API_KEY")
+        )
         self.logger.info(f"[DIAGNOSTIC] Email enabled: {self.enabled}")
         self.logger.info(f"[DIAGNOSTIC] SENDGRID_API_KEY: {'set (' + self.sendgrid_api_key[:10] + '...)' if self.sendgrid_api_key else 'MISSING!'}")
         self.logger.info(f"[DIAGNOSTIC] EMAIL_FROM: {self.settings.email_from}")
