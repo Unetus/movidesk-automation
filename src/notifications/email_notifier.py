@@ -660,11 +660,12 @@ class EmailNotifier:
                 subject=subject,
                 html_body=html_body
             )
-            self.logger.info(f"Sent HTML notification to {recipient}: {subject}")
+            self.logger.info(f"[EMAIL] Enviado com sucesso para: {recipient} | Assunto: {subject}")
             return True
-        
         except Exception as e:
-            self.logger.error(f"Error sending HTML notification to {recipient}: {e}")
+            import traceback
+            tb = traceback.format_exc()
+            self.logger.error(f"[EMAIL] Falha ao enviar para: {recipient} | Assunto: {subject} | Erro: {e}\nTraceback: {tb}")
             return False
     
     def test_connection(self) -> bool:
