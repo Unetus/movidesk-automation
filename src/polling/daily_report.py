@@ -1007,6 +1007,9 @@ class DailyReportGenerator:
                 to=self.agent_email  # Send to agent's own email
             )
             self.logger.info(f"[EMAIL] [END] Resultado envio: {email_result}")
+            if not email_result:
+                self.db.update_report(report_id, email_sent=False)
+                raise RuntimeError(f"Falha no envio do relatório por email para {self.agent_email}")
             
             # Update report as sent
             self.db.update_report(report_id, email_sent=True)

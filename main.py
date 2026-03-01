@@ -48,6 +48,7 @@ import sys
 import time
 import signal
 import argparse
+import os
 from pathlib import Path
 
 # Add src to path
@@ -128,10 +129,7 @@ class MovideskAutomation:
         required_fields = [
             ('movidesk_token', 'MOVIDESK_TOKEN'),
             ('groq_api_key', 'GROQ_API_KEY'),
-            ('movidesk_agent_email', 'MOVIDESK_AGENT_EMAIL'),
             ('email_from', 'EMAIL_FROM'),
-            ('email_password', 'EMAIL_PASSWORD'),
-            ('email_to', 'EMAIL_TO'),
         ]
         
         missing = []
@@ -142,6 +140,25 @@ class MovideskAutomation:
         if missing:
             self.logger.error(f"❌ Missing required configuration: {', '.join(missing)}")
             self.logger.error("Please check your .env file")
+            return False
+
+        # Validate agent configuration (supports AGENTS multi-agent and legacy single-agent)
+        try:
+            agent_emails = settings.agent_emails_list
+            self.logger.info(f"✅ Agent configuration loaded ({len(agent_emails)} agent(s))")
+        except ValueError as e:
+            self.logger.error(f"❌ {e}")
+            return False
+
+        # EMAIL_TO is required for polling notification modes that don't target agent-specific recipient
+        if self.mode in ('latest', 'overdue') and not getattr(settings, 'email_to', None):
+            self.logger.error("❌ Missing required configuration: EMAIL_TO")
+            return False
+
+        # Validate SendGrid API key (settings or env fallback)
+        sendgrid_key = getattr(settings, 'sendgrid_api_key', None) or os.getenv('SENDGRID_API_KEY')
+        if not sendgrid_key:
+            self.logger.error("❌ Missing required configuration: SENDGRID_API_KEY")
             return False
         
         return True

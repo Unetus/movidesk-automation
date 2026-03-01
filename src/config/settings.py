@@ -3,6 +3,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 from typing import Optional, List
+import re
 
 
 class Settings(BaseSettings):
@@ -42,7 +43,8 @@ class Settings(BaseSettings):
         """
         # Multi-agent mode (priority)
         if self.agents:
-            emails = [email.strip() for email in self.agents.split(';') if email.strip()]
+            # Accept semicolon, comma, or line-break separators
+            emails = [email.strip() for email in re.split(r'[;,\n\r]+', self.agents) if email.strip()]
             if emails:
                 return emails
         
@@ -68,7 +70,7 @@ class Settings(BaseSettings):
     email_smtp_server: str = Field(default="smtp.gmail.com")
     email_smtp_port: int = Field(default=587)
     email_from: str = Field(...)
-    email_password: str = Field(...)
+    email_password: Optional[str] = Field(default=None)
     email_to: str = Field(...)
     sendgrid_api_key: Optional[str] = Field(default=None, description="SendGrid API Key for email sending")
     
