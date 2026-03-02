@@ -291,9 +291,9 @@ class DailyReportGenerator:
     
     def generate_report(self) -> Dict[str, any]:
         """
-        Generate complete daily report with AI summaries ONLY for new and overdue tickets.
+        Generate complete daily report with AI summaries ONLY for new tickets.
         
-        Expiring soon tickets show raw data only (to save API tokens).
+        Overdue and expiring soon tickets show raw data only (to save API tokens).
         
         Returns:
             Dictionary containing report sections and summaries
@@ -310,11 +310,11 @@ class DailyReportGenerator:
         overdue_tickets = self.get_overdue_tickets()
         expiring_soon = self.get_expiring_soon_tickets(days=2)
         
-        # Collect tickets that NEED AI summaries (new + overdue only)
-        # Expiring soon tickets will be shown with raw data only
-        tickets_for_summarization = new_tickets + overdue_tickets
+        # Generate AI summaries ONLY for NEW tickets to save tokens
+        # Overdue and expiring tickets will show raw data only
+        tickets_for_summarization = new_tickets
         
-        # Generate AI summaries ONLY for new and overdue tickets
+        # Generate AI summaries ONLY for new tickets
         summaries = self._summarize_tickets_in_batches(tickets_for_summarization)
         
         # Build report
@@ -336,8 +336,8 @@ class DailyReportGenerator:
         self.logger.info(f"   🆕 Novos tickets (24h): {report['statistics']['total_new']}")
         self.logger.info(f"   🔴 Tickets vencidos: {report['statistics']['total_overdue']}")
         self.logger.info(f"   ⚠️  Vencendo em 2 dias: {report['statistics']['total_expiring']}")
-        self.logger.info(f"   🤖 Tickets com resumo de IA (novos + vencidos): {report['statistics']['total_summarized']}")
-        self.logger.info(f"   📊 Tickets sem resumo (vencendo em breve): {report['statistics']['total_expiring']}")
+        self.logger.info(f"   🤖 Tickets com resumo de IA: {report['statistics']['total_summarized']} (apenas novos)")
+        self.logger.info(f"   📊 Tickets sem resumo: {report['statistics']['total_overdue'] + report['statistics']['total_expiring']} (vencidos + vencendo)")
         self.logger.info("="*70 + "\n")
         
         return report
@@ -371,7 +371,7 @@ class DailyReportGenerator:
         lines.append(f"   🆕 Novos tickets (últimas 24h): {stats['total_new']}")
         lines.append(f"   🔴 Tickets com SLA vencido: {stats['total_overdue']}")
         lines.append(f"   ⚠️  Tickets vencendo (próximos 2 dias): {stats['total_expiring']}")
-        lines.append(f"   🤖 Resumos de IA gerados: {stats['total_summarized']}")
+        lines.append(f"   🤖 Resumos de IA: {stats['total_summarized']} (apenas NOVOS)")
         lines.append("")
         
         # Section 1: New Tickets
@@ -450,8 +450,8 @@ class DailyReportGenerator:
                 lines.append(f"   ⏰ SLA até: {self.format_datetime_brt(ticket.slaSolutionDate)}")
                 lines.append(f"   ⏳ Tempo restante: {days} dia(s) e {remaining_hours} hora(s)")
                 
-                # Note: Resumos de IA são apenas para novos e vencidos (economia de tokens)
-                # Tickets vencendo mostram dados brutos apenas
+                # Note: Resumos de IA são apenas para NOVOS tickets (economia de tokens)
+                # Tickets vencidos/vencendo mostram dados brutos apenas
                 
                 lines.append(f"\n   🔗 {ticket.movidesk_url}")
         else:
@@ -460,8 +460,8 @@ class DailyReportGenerator:
         lines.append("")
         lines.append("="*70)
         lines.append("📧 Relatório gerado automaticamente")
-        lines.append("   Resumos de IA: apenas para NOVOS e VENCIDOS (economia de tokens)")
-        lines.append("   Tickets vencendo: dados brutos para referência rápida")
+        lines.append("   Resumos de IA: apenas para NOVOS tickets (economia de tokens)")
+        lines.append("   Tickets vencidos/vencendo: dados brutos para referência rápida")
         lines.append("   Movidesk Automation | Powered by Groq AI")
         lines.append("="*70)
         
