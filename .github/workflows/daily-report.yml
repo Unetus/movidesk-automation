@@ -1,4 +1,5 @@
 name: Daily Report Cron
+# Envia relatórios diários para todos os agentes configurados
 
 on:
   schedule:
