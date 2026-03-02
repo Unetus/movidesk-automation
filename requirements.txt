@@ -21,5 +21,8 @@ pytz>=2024.1
 # Email - SendGrid
 sendgrid>=6.11.0
 
+# Web server for cron trigger
+flask>=3.0.0
+
 # Logging
 colorlog>=6.8.2

@@ -1,5 +1,4 @@
 # Railway Procfile - Defines how to run the application
-# For scheduled cron job, Railway will run this command at scheduled times
+# Runs web server that can be triggered by external cron services
 
-# Main scheduled report command (runs multi-agent reports)
-cron: python main.py --scheduled-report
+web: python server.py
