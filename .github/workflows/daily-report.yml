@@ -2,10 +2,10 @@ name: Daily Report Cron
 
 on:
   schedule:
-    # 08:45 BRT (America/Sao_Paulo = UTC-3) = 11:45 UTC
+    # 08:00 BRT (America/Sao_Paulo = UTC-3) = 11:00 UTC
     # Formato: minuto hora dia-do-mês mês dia-da-semana
-    # Executar Segunda a Sexta às 08:45 BRT
-    - cron: '45 11 * * 1-5'
+    # Executar Segunda a Sexta às 08:00 BRT
+    - cron: '0 11 * * 1-5'
   
   # Permite executar manualmente pelo GitHub Actions UI
   workflow_dispatch:
