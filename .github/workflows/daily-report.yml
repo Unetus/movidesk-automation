@@ -2,32 +2,25 @@ name: Daily Report Cron
 
 on:
   schedule:
-    # 08:00 BRT (America/Sao_Paulo = UTC-3) = 11:00 UTC
-    # Formato: minuto hora dia-do-mês mês dia-da-semana
-    # Executar Segunda a Sexta às 08:00 BRT
     - cron: '0 11 * * 1-5'
-  
-  # Permite executar manualmente pelo GitHub Actions UI
   workflow_dispatch:
 
 jobs:
   send-daily-report:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          pip install --upgrade pip
           pip install -r requirements.txt
-      
+
       - name: Run scheduled report
         run: python main.py --scheduled-report
         env:
@@ -38,7 +31,7 @@ jobs:
           AGENTS: ${{ secrets.AGENTS }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           LOG_LEVEL: INFO
-      
+
       - name: Upload logs on failure
         if: failure()
         uses: actions/upload-artifact@v3
