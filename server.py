@@ -6,11 +6,7 @@ Can be called by external cron services (EasyCron, cron-job.org, etc.)
 from flask import Flask, request, jsonify
 import os
 import sys
-
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
-
-from main import MovideskAutomation
+import subprocess
 
 app = Flask(__name__)
 
@@ -35,19 +31,32 @@ def trigger_reports():
         return jsonify({'error': 'Unauthorized'}), 401
     
     try:
-        # Run scheduled report
-        automation = MovideskAutomation(
-            mode='scheduled-report',
-            run_once=True
+        # Run scheduled report via subprocess
+        result = subprocess.run(
+            [sys.executable, 'main.py', '--scheduled-report'],
+            capture_output=True,
+            text=True,
+            timeout=600  # 10 minutes timeout
         )
         
-        automation.run()
+        if result.returncode == 0:
+            return jsonify({
+                'status': 'success',
+                'message': 'Reports sent to all agents',
+                'output': result.stdout[-500:] if len(result.stdout) > 500 else result.stdout
+            }), 200
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to send reports',
+                'error': result.stderr[-500:] if len(result.stderr) > 500 else result.stderr
+            }), 500
         
+    except subprocess.TimeoutExpired:
         return jsonify({
-            'status': 'success',
-            'message': 'Reports sent to all agents'
-        }), 200
-        
+            'status': 'error',
+            'message': 'Report generation timed out (>10 minutes)'
+        }), 500
     except Exception as e:
         return jsonify({
             'status': 'error',
